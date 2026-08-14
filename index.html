@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>🐯 猛虎死循环</title>
+    <title>🐯 猛虎捕食</title>
     <style>
         * { margin:0; padding:0; overflow:hidden; background:#0a0a1a; }
         canvas {
@@ -11,7 +11,7 @@
             width: 100vw;
             height: 100vh;
             background: radial-gradient(circle at center, #1a1a2e 0%, #0a0a1a 100%);
-            cursor: none;
+            cursor: crosshair;
         }
         #toast {
             position: fixed;
@@ -19,25 +19,26 @@
             left: 50%;
             transform: translateX(-50%);
             color: #ff5500;
-            font: 20px 'Arial Black', sans-serif;
-            text-shadow: 0 0 30px #ff5500, 0 0 60px #ff2200;
+            font: 18px 'Arial Black', sans-serif;
+            text-shadow: 0 0 30px #ff5500;
             background: rgba(0,0,0,0.7);
-            padding: 14px 32px;
-            border-radius: 50px;
+            padding: 12px 30px;
+            border-radius: 40px;
             border: 2px solid #ff5500;
             z-index: 999;
             white-space: nowrap;
-            animation: pulse 1.2s ease-in-out infinite alternate;
+            pointer-events: none;
+            animation: pulse 1.5s infinite alternate;
         }
         @keyframes pulse {
-            0% { opacity: 0.7; transform: translateX(-50%) scale(0.95); }
+            0% { opacity: 0.6; transform: translateX(-50%) scale(0.95); }
             100% { opacity: 1; transform: translateX(-50%) scale(1.05); }
         }
     </style>
 </head>
 <body>
     <canvas id="canvas"></canvas>
-    <div id="toast">🔥 老虎永不掉头 · 撞墙算我输</div>
+    <div id="toast">👆 点哪老虎冲哪 · 别松手</div>
 
     <script>
         (function() {
@@ -52,53 +53,61 @@
             window.addEventListener('resize', resize);
             resize();
 
+            // ---- 目标坐标（默认屏幕中央） ----
+            let targetX = W / 2;
+            let targetY = H / 2;
+
+            // ---- 鼠标/触摸事件 ----
+            function setTarget(e) {
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                if (clientX != null && clientY != null) {
+                    targetX = clientX - rect.left;
+                    targetY = clientY - rect.top;
+                }
+            }
+            canvas.addEventListener('mousemove', setTarget);
+            canvas.addEventListener('touchmove', setTarget, { passive: true });
+            canvas.addEventListener('touchstart', setTarget, { passive: true });
+
+            // ---- 老虎类 ----
             class Tiger {
                 constructor() {
-                    this.size = Math.min(W, H) / 9;
+                    this.size = Math.min(W, H) / 10;
                     this.x = Math.random() * (W - this.size * 2) + this.size;
                     this.y = Math.random() * (H - this.size * 2) + this.size;
-                    // 初始角度随机，但保证不会卡死
                     this.angle = Math.random() * Math.PI * 2;
-                    this.speed = 2.0 + Math.random() * 2.5;
+                    this.speed = 3.0 + Math.random() * 2.0;
                     this.tailWag = 0;
-                    this.changeDirTimer = 0;
                 }
 
                 update() {
-                    // 每30~50帧随机变向（增加随机性）
-                    this.changeDirTimer++;
-                    if (this.changeDirTimer > 30 + Math.random() * 40) {
-                        this.angle += (Math.random() - 0.5) * 1.0;
-                        this.changeDirTimer = 0;
+                    // 计算朝向目标的方向
+                    const dx = targetX - this.x;
+                    const dy = targetY - this.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist > 1) {
+                        // 目标角度
+                        const targetAngle = Math.atan2(dy, dx);
+                        // 平滑转向（角度差值处理）
+                        let diff = targetAngle - this.angle;
+                        while (diff > Math.PI) diff -= Math.PI * 2;
+                        while (diff < -Math.PI) diff += Math.PI * 2;
+                        this.angle += diff * 0.08; // 转向灵敏度（0.08 较平滑，0.15 更暴躁）
                     }
 
-                    // 计算下一帧位置
-                    let newX = this.x + Math.cos(this.angle) * this.speed;
-                    let newY = this.y + Math.sin(this.angle) * this.speed;
+                    // 移动（永远朝前）
+                    this.x += Math.cos(this.angle) * this.speed;
+                    this.y += Math.sin(this.angle) * this.speed;
 
-                    // 边界检测 —— 撞墙后强制掉头（硬反弹）
+                    // 边界硬反弹（防止卡墙）
                     const half = this.size * 1.1;
-                    if (newX < half) {
-                        newX = half;
-                        this.angle = -this.angle + Math.PI; // 反向
-                    }
-                    if (newX > W - half) {
-                        newX = W - half;
-                        this.angle = -this.angle + Math.PI;
-                    }
-                    if (newY < half) {
-                        newY = half;
-                        this.angle = Math.PI - this.angle;
-                    }
-                    if (newY > H - half) {
-                        newY = H - half;
-                        this.angle = Math.PI - this.angle;
-                    }
+                    if (this.x < half) { this.x = half; this.angle = -this.angle + Math.PI; }
+                    if (this.x > W - half) { this.x = W - half; this.angle = -this.angle + Math.PI; }
+                    if (this.y < half) { this.y = half; this.angle = Math.PI - this.angle; }
+                    if (this.y > H - half) { this.y = H - half; this.angle = Math.PI - this.angle; }
 
-                    this.x = newX;
-                    this.y = newY;
-
-                    // 尾巴摇摆
                     this.tailWag += 0.12;
                 }
 
@@ -112,7 +121,6 @@
                     ctx.translate(x, y);
                     ctx.rotate(angle);
 
-                    // 霓虹光效
                     ctx.shadowColor = '#ff8800';
                     ctx.shadowBlur = 35;
 
@@ -217,18 +225,19 @@
                 }
             }
 
-            // 创建5只老虎，保证满屏乱窜
+            // ---- 创建10只老虎（填满屏幕） ----
             const tigers = [];
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 10; i++) {
                 const t = new Tiger();
-                t.size = (Math.min(W, H) / 10) * (0.6 + Math.random() * 0.7);
-                t.speed = 1.8 + Math.random() * 3.2;
+                t.size = (Math.min(W, H) / 12) * (0.6 + Math.random() * 0.8);
+                t.speed = 2.5 + Math.random() * 3.0;
                 t.x = Math.random() * (W - t.size * 2) + t.size;
                 t.y = Math.random() * (H - t.size * 2) + t.size;
                 t.angle = Math.random() * Math.PI * 2;
                 tigers.push(t);
             }
 
+            // ---- 动画 ----
             function animate() {
                 ctx.clearRect(0, 0, W, H);
 
@@ -243,6 +252,20 @@
                     ctx.fill();
                 }
 
+                // 画光标指引点（半透明圆环，提示目标位置）
+                ctx.shadowBlur = 40;
+                ctx.shadowColor = '#ff00ff';
+                ctx.strokeStyle = 'rgba(255,0,255,0.4)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(targetX, targetY, 20, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(targetX, targetY, 5, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255,0,255,0.6)';
+                ctx.fill();
+
+                // 更新并绘制所有老虎
                 tigers.forEach(t => {
                     t.update();
                     t.draw();
@@ -253,12 +276,15 @@
 
             animate();
 
+            // 窗口变化时重置
             window.addEventListener('resize', () => {
                 resize();
+                targetX = W / 2;
+                targetY = H / 2;
                 tigers.forEach(t => {
                     t.x = Math.min(t.x, W - t.size);
                     t.y = Math.min(t.y, H - t.size);
-                    t.size = (Math.min(W, H) / 10) * (0.6 + Math.random() * 0.7);
+                    t.size = (Math.min(W, H) / 12) * (0.6 + Math.random() * 0.8);
                 });
             });
 
