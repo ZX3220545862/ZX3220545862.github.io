@@ -3,49 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>🐯 猛虎捕食</title>
+    <title>91.78.13</title>
     <style>
-        * { margin:0; padding:0; overflow:hidden; background:#0a0a1a; }
+        * {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #0b0e1a;
+            user-select: none;
+        }
         canvas {
             display: block;
             width: 100vw;
             height: 100vh;
-            background: radial-gradient(circle at center, #1a1a2e 0%, #0a0a1a 100%);
-            cursor: crosshair;
+            background: radial-gradient(circle at 20% 30%, #1a1f33, #070a12);
+            cursor: default;
+            position: relative;
+            z-index: 1;
         }
-        #toast {
+        #center-image {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            object-fit: cover;
+            box-shadow: 0 0 60px rgba(255, 200, 150, 0.4), 0 0 120px rgba(255, 150, 100, 0.2);
+            z-index: 10;
+            pointer-events: none;
+            animation: floatGlow 4s ease-in-out infinite alternate;
+            border: 3px solid rgba(255, 220, 180, 0.3);
+        }
+        @keyframes floatGlow {
+            0% { transform: translate(-50%, -50%) scale(1) rotate(0deg); box-shadow: 0 0 40px rgba(255, 200, 150, 0.3); }
+            100% { transform: translate(-50%, -50%) scale(1.06) rotate(4deg); box-shadow: 0 0 80px rgba(255, 200, 150, 0.6); }
+        }
+        #info {
             position: fixed;
             bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: #ff5500;
-            font: 18px 'Arial Black', sans-serif;
-            text-shadow: 0 0 30px #ff5500;
-            background: rgba(0,0,0,0.7);
-            padding: 12px 30px;
-            border-radius: 40px;
-            border: 2px solid #ff5500;
-            z-index: 999;
-            white-space: nowrap;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: rgba(255, 220, 180, 0.4);
+            font: 14px 'Courier New', monospace;
+            letter-spacing: 4px;
             pointer-events: none;
-            animation: pulse 1.5s infinite alternate;
-        }
-        @keyframes pulse {
-            0% { opacity: 0.6; transform: translateX(-50%) scale(0.95); }
-            100% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+            z-index: 20;
+            text-shadow: 0 0 20px rgba(255, 200, 150, 0.15);
         }
     </style>
 </head>
 <body>
     <canvas id="canvas"></canvas>
-    <div id="toast">👆 点哪老虎冲哪 · 别松手</div>
+    <!-- 中央图片（替换 src 为自己的图） -->
+    <img id="center-image" src="https://raw.githubusercontent.com/ZX3220545862/ZX3220545862.github.io/main/output.webp" alt="中央图">
+    <div id="info">❄️老不斯</div>
 
     <script>
         (function() {
+            // ========== 画布 ==========
             const canvas = document.getElementById('canvas');
             const ctx = canvas.getContext('2d');
             let W, H;
-
             function resize() {
                 W = canvas.width = window.innerWidth;
                 H = canvas.height = window.innerHeight;
@@ -53,239 +74,156 @@
             window.addEventListener('resize', resize);
             resize();
 
-            // ---- 目标坐标（默认屏幕中央） ----
-            let targetX = W / 2;
-            let targetY = H / 2;
+            // ========== 名字列表 ==========
+            const nameList = [
+                '范新宇', '范新宇', 'Your life is dying soon.', '范新宇', '范新宇',
+                '范新宇', '我死的好惨', '范新宇', '范新宇', '范新宇',
+                '范新宇', '范新宇', '拿命来', '范新宇', '范新宇',
+                '💀💀💀', '范新宇', '范新宇', '范新宇', '范新宇'
+            ];
 
-            // ---- 鼠标/触摸事件 ----
-            function setTarget(e) {
-                const rect = canvas.getBoundingClientRect();
-                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-                if (clientX != null && clientY != null) {
-                    targetX = clientX - rect.left;
-                    targetY = clientY - rect.top;
-                }
-            }
-            canvas.addEventListener('mousemove', setTarget);
-            canvas.addEventListener('touchmove', setTarget, { passive: true });
-            canvas.addEventListener('touchstart', setTarget, { passive: true });
-
-            // ---- 老虎类 ----
-            class Tiger {
+            // ========== 雪花粒子 ==========
+            class NameSnow {
                 constructor() {
-                    this.size = Math.min(W, H) / 10;
-                    this.x = Math.random() * (W - this.size * 2) + this.size;
-                    this.y = Math.random() * (H - this.size * 2) + this.size;
-                    this.angle = Math.random() * Math.PI * 2;
-                    this.speed = 3.0 + Math.random() * 2.0;
-                    this.tailWag = 0;
+                    this.name = nameList[Math.floor(Math.random() * nameList.length)];
+                    this.size = 14 + Math.random() * 16;
+                    this.x = Math.random() * (W - 60) + 30;
+                    this.y = -this.size - Math.random() * 200;
+                    this.speedY = 0.8 + Math.random() * 1.8;
+                    this.speedX = (Math.random() - 0.5) * 0.6;
+                    this.opacity = 0.3 + Math.random() * 0.6;
+                    this.rotation = (Math.random() - 0.5) * 0.3;
+                    this.color = `hsl(${30 + Math.random() * 30}, 70%, ${60 + Math.random() * 30}%)`;
                 }
 
                 update() {
-                    // 计算朝向目标的方向
-                    const dx = targetX - this.x;
-                    const dy = targetY - this.y;
-                    const dist = Math.hypot(dx, dy);
-                    if (dist > 1) {
-                        // 目标角度
-                        const targetAngle = Math.atan2(dy, dx);
-                        // 平滑转向（角度差值处理）
-                        let diff = targetAngle - this.angle;
-                        while (diff > Math.PI) diff -= Math.PI * 2;
-                        while (diff < -Math.PI) diff += Math.PI * 2;
-                        this.angle += diff * 0.08; // 转向灵敏度（0.08 较平滑，0.15 更暴躁）
+                    this.y += this.speedY;
+                    this.x += this.speedX + Math.sin(this.y * 0.008) * 0.3;
+                    if (this.y > H + 50) {
+                        this.y = -this.size - Math.random() * 100;
+                        this.x = Math.random() * (W - 60) + 30;
+                        this.name = nameList[Math.floor(Math.random() * nameList.length)];
+                        this.speedY = 0.8 + Math.random() * 2.0;
+                        this.opacity = 0.3 + Math.random() * 0.6;
                     }
-
-                    // 移动（永远朝前）
-                    this.x += Math.cos(this.angle) * this.speed;
-                    this.y += Math.sin(this.angle) * this.speed;
-
-                    // 边界硬反弹（防止卡墙）
-                    const half = this.size * 1.1;
-                    if (this.x < half) { this.x = half; this.angle = -this.angle + Math.PI; }
-                    if (this.x > W - half) { this.x = W - half; this.angle = -this.angle + Math.PI; }
-                    if (this.y < half) { this.y = half; this.angle = Math.PI - this.angle; }
-                    if (this.y > H - half) { this.y = H - half; this.angle = Math.PI - this.angle; }
-
-                    this.tailWag += 0.12;
+                    if (this.x < -60) this.x = W + 30;
+                    if (this.x > W + 60) this.x = -30;
                 }
 
                 draw() {
-                    const s = this.size;
-                    const x = this.x;
-                    const y = this.y;
-                    const angle = this.angle;
-
                     ctx.save();
-                    ctx.translate(x, y);
-                    ctx.rotate(angle);
-
-                    ctx.shadowColor = '#ff8800';
-                    ctx.shadowBlur = 35;
-
-                    // 身体
-                    ctx.fillStyle = '#ff8800';
-                    ctx.shadowBlur = 45;
-                    ctx.beginPath();
-                    ctx.ellipse(0, 0, s * 0.9, s * 0.6, 0, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // 条纹
-                    ctx.shadowBlur = 8;
-                    ctx.fillStyle = '#111';
-                    for (let i = -2; i <= 2; i++) {
-                        ctx.fillRect(i * s * 0.3 - s * 0.05, -s * 0.5, s * 0.1, s * 0.4);
-                    }
-
-                    // 头
-                    ctx.fillStyle = '#ff9900';
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(this.rotation);
+                    ctx.globalAlpha = this.opacity * 0.9;
+                    ctx.shadowColor = 'rgba(180, 220, 255, 0.5)';
+                    ctx.shadowBlur = 25;
+                    ctx.font = `bold ${this.size}px 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const grad = ctx.createLinearGradient(-this.size, -this.size, this.size, this.size);
+                    grad.addColorStop(0, this.color);
+                    grad.addColorStop(1, '#ffd8b0');
+                    ctx.fillStyle = grad;
+                    ctx.fillText(this.name, 0, 0);
                     ctx.shadowBlur = 40;
-                    ctx.beginPath();
-                    ctx.arc(s * 0.7, -s * 0.1, s * 0.45, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // 耳朵
-                    ctx.fillStyle = '#cc6600';
-                    ctx.shadowBlur = 20;
-                    ctx.beginPath();
-                    ctx.moveTo(s * 0.9, -s * 0.45);
-                    ctx.lineTo(s * 1.1, -s * 0.15);
-                    ctx.lineTo(s * 0.7, -s * 0.15);
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.moveTo(s * 0.5, -s * 0.45);
-                    ctx.lineTo(s * 0.3, -s * 0.15);
-                    ctx.lineTo(s * 0.7, -s * 0.15);
-                    ctx.fill();
-
-                    // 眼睛发光
-                    ctx.shadowBlur = 35;
-                    ctx.shadowColor = '#00ffcc';
-                    ctx.fillStyle = '#00ffcc';
-                    ctx.beginPath();
-                    ctx.arc(s * 0.85, -s * 0.15, s * 0.1, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.arc(s * 0.55, -s * 0.15, s * 0.1, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // 瞳孔
-                    ctx.shadowBlur = 15;
-                    ctx.shadowColor = '#ff00ff';
-                    ctx.fillStyle = '#ff00ff';
-                    ctx.beginPath();
-                    ctx.arc(s * 0.87, -s * 0.15, s * 0.04, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.arc(s * 0.57, -s * 0.15, s * 0.04, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // 嘴巴
-                    ctx.shadowBlur = 5;
-                    ctx.strokeStyle = '#000';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.arc(s * 0.7, s * 0.05, s * 0.12, 0.1, Math.PI - 0.1);
-                    ctx.stroke();
-
-                    // 尾巴
-                    ctx.shadowBlur = 30;
-                    ctx.shadowColor = '#ff8800';
-                    ctx.strokeStyle = '#ff7700';
-                    ctx.lineWidth = s * 0.12;
-                    ctx.beginPath();
-                    const wag = Math.sin(this.tailWag) * 0.25;
-                    ctx.moveTo(-s * 0.8, s * 0.1);
-                    ctx.quadraticCurveTo(
-                        -s * 1.2 - s * 0.25 * wag,
-                        -s * 0.25 + s * 0.3 * wag,
-                        -s * 1.0 - s * 0.35 * wag,
-                        s * 0.3 + s * 0.25 * wag
-                    );
-                    ctx.stroke();
-
-                    // 胡须
-                    ctx.shadowBlur = 8;
-                    ctx.shadowColor = '#ffffff';
-                    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-                    ctx.lineWidth = 1.2;
-                    for (let side = -1; side <= 1; side += 2) {
-                        ctx.beginPath();
-                        ctx.moveTo(s * 0.5, s * 0.0);
-                        ctx.lineTo(s * 0.8 + side * s * 0.15, s * 0.15);
-                        ctx.stroke();
-                        ctx.beginPath();
-                        ctx.moveTo(s * 0.5, s * 0.05);
-                        ctx.lineTo(s * 0.8 + side * s * 0.15, s * 0.3);
-                        ctx.stroke();
-                    }
-
+                    ctx.shadowColor = 'rgba(255, 200, 150, 0.2)';
+                    ctx.fillText(this.name, 0, 0);
                     ctx.restore();
                 }
             }
 
-            // ---- 创建10只老虎（填满屏幕） ----
-            const tigers = [];
-            for (let i = 0; i < 10; i++) {
-                const t = new Tiger();
-                t.size = (Math.min(W, H) / 12) * (0.6 + Math.random() * 0.8);
-                t.speed = 2.5 + Math.random() * 3.0;
-                t.x = Math.random() * (W - t.size * 2) + t.size;
-                t.y = Math.random() * (H - t.size * 2) + t.size;
-                t.angle = Math.random() * Math.PI * 2;
-                tigers.push(t);
+            // ========== 生成雪花 ==========
+            const snowflakes = [];
+            const count = Math.min(80, Math.floor(W * H / 18000));
+            for (let i = 0; i < count; i++) {
+                const s = new NameSnow();
+                s.y = Math.random() * H - H;
+                s.size = 12 + Math.random() * 18;
+                s.speedY = 0.6 + Math.random() * 2.2;
+                snowflakes.push(s);
             }
 
-            // ---- 动画 ----
+            // ========== 音乐引擎（Lofi） ==========
+            let audioCtx = null;
+            let oscillator1, oscillator2, gainNode, filterNode;
+            let intervalId = null;
+
+            function initAudio() {
+                if (audioCtx) return;
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    gainNode = audioCtx.createGain();
+                    gainNode.gain.value = 0.25;
+                    gainNode.connect(audioCtx.destination);
+                    filterNode = audioCtx.createBiquadFilter();
+                    filterNode.type = 'lowpass';
+                    filterNode.frequency.value = 800;
+                    filterNode.Q.value = 1.2;
+                    filterNode.connect(gainNode);
+                    oscillator1 = audioCtx.createOscillator();
+                    oscillator1.type = 'sawtooth';
+                    oscillator1.frequency.value = 130.81;
+                    oscillator1.connect(filterNode);
+                    oscillator2 = audioCtx.createOscillator();
+                    oscillator2.type = 'sine';
+                    oscillator2.frequency.value = 196.00;
+                    oscillator2.connect(filterNode);
+                    oscillator1.start();
+                    oscillator2.start();
+
+                    const chords = [
+                        [130.81, 196.00],
+                        [146.83, 220.00],
+                        [164.81, 246.94],
+                        [174.61, 261.63],
+                    ];
+                    let idx = 0;
+                    intervalId = setInterval(() => {
+                        const chord = chords[idx % chords.length];
+                        oscillator1.frequency.setTargetAtTime(chord[0], audioCtx.currentTime, 0.05);
+                        oscillator2.frequency.setTargetAtTime(chord[1], audioCtx.currentTime, 0.05);
+                        idx++;
+                    }, 2400);
+                    setTimeout(() => {
+                        if (oscillator1) oscillator1.detune.value = 2.5;
+                        if (oscillator2) oscillator2.detune.value = -1.8;
+                    }, 500);
+                } catch (e) {
+                    console.warn('音频启动失败:', e);
+                }
+            }
+
+            canvas.addEventListener('click', () => {
+                if (!audioCtx) initAudio();
+                else if (audioCtx.state === 'suspended') audioCtx.resume();
+            });
+            canvas.addEventListener('touchstart', () => {
+                if (!audioCtx) initAudio();
+                else if (audioCtx.state === 'suspended') audioCtx.resume();
+            });
+
+            // ========== 动画 ==========
             function animate() {
                 ctx.clearRect(0, 0, W, H);
+                const grad = ctx.createRadialGradient(W*0.3, H*0.2, 50, W*0.5, H*0.5, W*0.9);
+                grad.addColorStop(0, '#1a2744');
+                grad.addColorStop(0.5, '#0f1a2e');
+                grad.addColorStop(1, '#060a14');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, W, H);
 
-                // 背景星星
-                for (let i = 0; i < 80; i++) {
-                    const sx = (i * 173.1 + Date.now() * 0.008) % W;
-                    const sy = (i * 109.7 + Date.now() * 0.004) % H;
-                    const bright = 0.3 + 0.7 * Math.sin(i + Date.now() * 0.003);
-                    ctx.fillStyle = `rgba(255,255,255,${bright * 0.5})`;
-                    ctx.beginPath();
-                    ctx.arc(sx, sy, 1.2 + bright * 1.8, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-
-                // 画光标指引点（半透明圆环，提示目标位置）
-                ctx.shadowBlur = 40;
-                ctx.shadowColor = '#ff00ff';
-                ctx.strokeStyle = 'rgba(255,0,255,0.4)';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(targetX, targetY, 20, 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.arc(targetX, targetY, 5, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255,0,255,0.6)';
-                ctx.fill();
-
-                // 更新并绘制所有老虎
-                tigers.forEach(t => {
-                    t.update();
-                    t.draw();
+                snowflakes.forEach(s => {
+                    s.update();
+                    s.draw();
                 });
 
                 requestAnimationFrame(animate);
             }
-
             animate();
 
-            // 窗口变化时重置
-            window.addEventListener('resize', () => {
-                resize();
-                targetX = W / 2;
-                targetY = H / 2;
-                tigers.forEach(t => {
-                    t.x = Math.min(t.x, W - t.size);
-                    t.y = Math.min(t.y, H - t.size);
-                    t.size = (Math.min(W, H) / 12) * (0.6 + Math.random() * 0.8);
-                });
+            window.addEventListener('beforeunload', () => {
+                if (intervalId) clearInterval(intervalId);
+                if (audioCtx) { try { audioCtx.close(); } catch(e) {} }
             });
 
         })();
